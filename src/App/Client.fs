@@ -82,9 +82,9 @@ type Error =
     static member FromJson(_:Error) = Error.Decode
 
 type QueryResponse =
-    | Ticket of ticket: Ticket
-    | Error of error: Error
-    | Fail of fail: string list
+    | Ticket of Ticket
+    | Error of  Error
+    | Fail of string list
 
     static member UnknownError
         with get() = Error (Error.Create 0 null null null)

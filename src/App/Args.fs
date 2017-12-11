@@ -5,11 +5,11 @@ open System
 open Argu
 
 type private ArgDefs =
-    | AccessId of accessid:string
-    | AccessKey of accesskey:string
-    | BaseUrl of baseurl:string
-    | FromTime of fromtime:string
-    | ToTime of totime:string
+    | AccessId of string
+    | AccessKey of string
+    | BaseUrl of string
+    | FromTime of string
+    | ToTime of string
 with
     interface IArgParserTemplate with
         member s.Usage =
