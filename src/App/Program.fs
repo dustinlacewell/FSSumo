@@ -12,13 +12,14 @@ open Client
 
 [<EntryPoint>]
 let main argv =
-    let query = @"_sourceCategory=harbour/container-health"
     try
-        Args("fss", argv)
-        |> Client.query query |> function
-            | QueryResponse.Ticket t -> printfn "Ticket: %A" t
-            | QueryResponse.Error e -> printfn "Error %A" e
-            | QueryResponse.Fail e -> printfn "Fail! %A" e
+        let args = Args("fss", argv)
+        let query = @"_sourceCategory=harbour/container-health"
+        let client =  Client.FromArgs args
+        match client.Query query args.FromTime args.ToTime with
+        | QueryResponse.Ticket t -> printfn "Ticket: %A" t
+        | QueryResponse.Error e -> printfn "Error %A" e
+        | QueryResponse.Fail e -> printfn "Fail! %A" e
     with
         | Failure(msg) -> printfn "Error: %s" msg
         | :? ArguParseException as ex -> printfn "%s" ex.Message
