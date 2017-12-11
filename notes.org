@@ -1,0 +1,114 @@
+
+* Workflow sketch
+
+** Option<'a> based workflow
+
+ticket: Ticket <- Client.Query //returns Option<Ticket>
+
+state: State <- Client.WaitOn ticket // returns Option<State>
+
+return! Client.FetchAll state // returns Option<Results>
+
+
+
+Each Client method performs the entire associated process and negotiates the internal union types (QueryResponse,
+StatusResponse, FetchResponse) to return a simple Option containing the success
+value.
+
+  Success: Results
+  Failure: None
+
+** QueryResult<'a> based workflow
+
+Defined as a union:
+
+  type QueryResult<'a> =
+    Success of 'a
+    Fail of QueryFailure
+
+ticket: Ticket <- Client.Query // returns QueryResult<Ticket>
+
+state: State <- Client.WaitOn ticket // returns QueryResult<State>
+
+return! Client.FetchAll state // returns QueryResult<Results>
+
+  Success: Results
+  Failure: QueryFailure
+
+QueryFailure could be a list of strings describing failures along the way? It
+could also be a union of types holding stage specific failures?
+
+
+* Chiron (JSON library)
+
+- Json : union of possible json types
+- JsonObject : collection of Json properties / union of WriteObject & ReadObject
+
+** JsonResult
+
++    JsonResult<'a> | Option Monad
+
+    - JPass 'a
+    - JFail JsonFailure
+
+** Encoding
+
++  ObjectBuilder<'a> | 'a -> JsonObject => JsonObject
+
++    JsonEncoder<'a> | 'a => Json
+
++           Json<'a> | Json => JsonResult<'a> * Json
+
+*** module Serialization.Encode
+
+   JsonEncoder's ('a => Json) for native types
+
+   Higher-order functions taking JsonEncoders like `required` and `optional`
+
+*** module Inference.Json.Encode
+
+   Some JsonObject -> JsonObject functions like `required` and `optional`
+
+*** module JsonTransformer.Json
+
+   Implements the Json<'a> Monad
+
+   Pronounced "Json Transformer"
+
+   Used to implement the JsonBuilder
+
+** Decoding
+
++    Decoder<'s, 'a> | 's => JsonResult<'a>
+
++   ObjectReader<'a> | JsonObject => JsonResult<'a>
+
++    JsonDecoder<'a> | Json => JsonResult<'a>
+
+*** module Decoder
+
+   Implements the Decoder<'s, 'a> Monad
+
+*** module Serialization.Decode
+
+   JsonDecoder's (Json -> JsonResult<'a>) for native types
+
+   Various first-order Decoders
+
+   Many higher-order functions taking Decoders and JsonDecoders
+
+*** FromJson member
+
+   'a -> Decoder<Json, 'a> | 'a -> Json => JsonResult<'a>
+
+   Uses `jsonDecoder` computation expression
+
+*** ToJson member
+
+   'a -> Json // JsonEncoder<'a>
+
+   Uses `json` computation expression
+
+
+
+
