@@ -1,4 +1,7 @@
-﻿open Argu
+﻿open System
+
+open Hopac
+open Argu
 
 open Chiron
 open Chiron.Operators
@@ -17,9 +20,15 @@ let main argv =
         let query = @"_sourceCategory=harbour/container-health"
         let client =  Client.FromArgs args
         match client.Query query args.FromTime args.ToTime with
-        | QueryResponse.Ticket t -> printfn "Ticket: %A" t
-        | QueryResponse.Error e -> printfn "Error %A" e
-        | QueryResponse.Fail e -> printfn "Fail! %A" e
+            | Fail fails -> printfn "Query Fail %A" fails
+            | Error error -> printfn "Query Error %A" error
+            | Pass ticket ->
+                printfn "Sleeping..."
+                run <| job { do! timeOut (TimeSpan.FromSeconds 3.0)}
+                match client.WaitOn ticket with
+                    | Fail fails -> printfn "Status Fail %A" fails
+                    | Error error -> printfn "Status Error %A" error
+                    | Pass status -> printfn "Status %A" status
     with
         | Failure(msg) -> printfn "Error: %s" msg
         | :? ArguParseException as ex -> printfn "%s" ex.Message
