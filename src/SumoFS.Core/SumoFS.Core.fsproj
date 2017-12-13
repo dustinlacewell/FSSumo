@@ -7,19 +7,16 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Utils.fs" />
-    <Compile Include="Defaults.fs" />
-    <Compile Include="Args.fs" />
-    <Compile Include="Program.fs" />
+    <Compile Include="Client.fs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="/Users/dustinlacewell/src/Http.fs/HttpFs/bin/Release/netstandard2.0/HttpFs.dll" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Argu" Version="3.7.0" />
+    <PackageReference Include="FSharp.Data" Version="2.4.3" />
+    <PackageReference Include="Hopac" Version="0.3.23" />
     <PackageReference Include="Chiron" Version="7.0.0-alpha-170410" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\SumoFS.Core\SumoFS.Core.fsproj" />
+    <PackageReference Include="System.Net.Http" Version="4.3.3" />
   </ItemGroup>
   <Import Project="fsc.props" />
 </Project>

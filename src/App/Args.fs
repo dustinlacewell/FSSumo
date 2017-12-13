@@ -4,57 +4,128 @@ module Args
 open System
 open Argu
 
-type private ArgDefs =
-    | AccessId of string
-    | AccessKey of string
-    | BaseUrl of string
-    | FromTime of string
-    | ToTime of string
+[<CliPrefix(CliPrefix.Dash)>]
+type QueryArgs =
+    | [<GatherUnrecognized>][<Last>][<ExactlyOnce>] Query of string
+    | [<AltCommandLine("--from")>][<ExactlyOnce>] FromTime of string
+    | [<AltCommandLine("--to")>] [<ExactlyOnce>] ToTime of string
 with
     interface IArgParserTemplate with
         member s.Usage =
             match s with
-            | AccessId _ -> "sumologic access ID."
-            | AccessKey _ -> "sumologic access key."
-            | BaseUrl _ -> "sumologic jobs api url"
+            | Query _ -> "Sumo search query"
             | FromTime _ -> "query start time"
             | ToTime _ -> "query end time"
+// and StatusArgs =
+//     | [<Mandatory>] [<AltCommandLine("-j")>] JobId of string
+//     | [<Mandatory>] ELBCookie of string
+//     | [<Mandatory>] SessionCookie of string
+// with
+//     interface IArgParserTemplate with
+//         member this.Usage =
+//             match this with
+//             | JobId _ -> "ID of job to poll"
+//             | ELBCookie _ -> "Cookie for AWS ELB"
+//             | SessionCookie _ -> "Cookie for session"
+and [<RequireSubcommand>] GlobalArgs =
+    | [<Inherit>] AccessId of string
+    | [<Inherit>] AccessKey of string
+    | [<Inherit>] BaseUrl of string
+    | [<CliPrefix(CliPrefix.None)>] Query of ParseResults<QueryArgs>
+//    | [<CliPrefix(CliPrefix.None)>] Status of ParseResults<StatusArgs>
+with
+    interface IArgParserTemplate with
+        member this.Usage =
+            match this with
+            | AccessId _ -> "API access ID."
+            | AccessKey _ -> "API access key."
+            | BaseUrl _ -> "Base API URL"
+            | Query _ -> "Submit a query."
+//            | Status _ -> "Poll query status"
 
-type Args(programName, argv) =
-    let _argv = argv
-    let _parser = ArgumentParser.Create<ArgDefs>(programName = programName)
-    let _results = _parser.ParseCommandLine argv
+let baseUrl (args:ParseResults<GlobalArgs>) = args.GetResult (<@ BaseUrl @>, defaultValue = BASEURL)
 
-    member this.BaseUrl
-      with get() = _results.GetResult (<@ BaseUrl @>, defaultValue = BASEURL)
+let accessId (args:ParseResults<GlobalArgs>) = args.GetResult (<@ AccessId @>, defaultValue = ACCESSID)
 
-    member this.AccessId
-      with get() =
-        let id = _results.GetResult (<@ AccessId @>, defaultValue = ACCESSID)
-        if isNull id then
-            failwith "Access ID is required."
-        else
-            id
+let accessKey (args:ParseResults<GlobalArgs>) = args.GetResult (<@ AccessKey @>, defaultValue = ACCESSKEY)
 
-    member this.AccessKey
-      with get() =
-        let key = _results.GetResult (<@ AccessKey @>, defaultValue = ACCESSKEY)
-        if isNull key then
-            failwith "Access Key is required."
-        else
-            key
+let fromTime (args:ParseResults<'t>) =
+    args.GetResult (<@ FromTime @>)
+    |> DateTime.Parse
+    |> fun x -> x.ToUniversalTime()
 
-    member this.ToTime
-      with get() =
-          let now = DateTime.UtcNow - TimeSpan(1, 0, 0, 0)
+let toTime (args:ParseResults<'t>) =
+    args.GetResult (<@ ToTime @>)
+    |> DateTime.Parse
+    |> fun x -> x.ToUniversalTime()
 
-          _results.GetResult (<@ ToTime @>, defaultValue = now.ToString("o"))
-          |> DateTime.Parse
-          |> fun x -> x.ToUniversalTime()
+type QueryOptions =
+    { Query: string
+      From: DateTime
+      To: DateTime
+      BaseUrl: string
+      Id: string
+      Key: string }
 
-    member this.FromTime
-      with get() =
-          let before = this.ToTime - TimeSpan(1, 0, 0)
-          _results.GetResult (<@ FromTime @>, defaultValue = before.ToString("o"))
-          |> DateTime.Parse
-          |> fun x -> x.ToUniversalTime()
+    with
+        static member Unit () =
+            { Query = null
+              From = DateTime.UtcNow
+              To = DateTime.UtcNow
+              BaseUrl = null
+              Id = null
+              Key = null }
+
+        static member FromArgs (gargs:ParseResults<GlobalArgs>) =
+            let (args:ParseResults<QueryArgs>) = gargs.GetResult (<@ Query @>)
+            { Query = args.GetResult (<@ QueryArgs.Query @>)
+              From = fromTime args
+              To = toTime args
+              BaseUrl = baseUrl gargs
+              Id = accessId gargs
+              Key = accessKey gargs }
+
+
+// type StatusOptions =
+//     { JobId: string
+//       ELB: string
+//       Session: string
+//       BaseUrl: string
+//       Id: string
+//       Key: string }
+
+//     with
+//         static member Unit () =
+//             { JobId = null
+//               ELB = null
+//               Session = null
+//               BaseUrl = null
+//               Id = null
+//               Key = null }
+
+//         static member FromArgs (gargs:ParseResults<GlobalArgs>) =
+//             let (args:ParseResults<StatusArgs>) = gargs.GetResult (<@ Status @>)
+//             { JobId = args.GetResult (<@ StatusArgs.JobId @>)
+//               ELB = args.GetResult (<@ StatusArgs.ELBCookie @>)
+//               Session = args.GetResult (<@ StatusArgs.SessionCookie @>)
+//               BaseUrl = baseUrl gargs
+//               Id = accessId gargs
+//               Key = accessKey gargs }
+
+
+type Options =
+    | Query of QueryOptions
+//    | Status of StatusOptions
+    | NoCommand
+
+let ParseArgs argv : Options =
+    let parser = ArgumentParser.Create<GlobalArgs>(programName = "fss")
+    let results = parser.ParseCommandLine argv
+    let command = results.GetSubCommand()
+    let now = (DateTime.UtcNow).ToString()
+
+    match command with
+        | GlobalArgs.Query x -> Query <| QueryOptions.FromArgs results
+//        | GlobalArgs.Status x -> Status <| StatusOptions.FromArgs results
+        | _ -> NoCommand
+
